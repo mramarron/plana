@@ -2,6 +2,18 @@ import * as SQLite from 'expo-sqlite';
 
 export const db = SQLite.openDatabaseSync('plana.db');
 
+export type TransactionType = 'income' | 'expense' | 'loan';
+
+export interface TransactionRow {
+  id: number;
+  account_id: number;
+  type: TransactionType;
+  category: string;
+  amount: number;
+  note: string | null;
+  occurred_at: string;
+}
+
 let isDatabaseInitialized = false;
 
 export function initializeDatabase() {
@@ -29,7 +41,7 @@ export function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS transactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       account_id INTEGER NOT NULL,
-      type TEXT NOT NULL CHECK(type IN ('income','expense')),
+      type TEXT NOT NULL CHECK(type IN ('income','expense','loan')),
       category TEXT NOT NULL,
       amount REAL NOT NULL,
       note TEXT,
@@ -77,34 +89,107 @@ export function markOnboardingSeen() {
   setSetting('has_seen_onboarding', 'true');
 }
 
+export function getPrimaryAccountId() {
+  initializeDatabase();
+
+  let account = db.getFirstSync<{ id: number }>(
+    `SELECT id FROM accounts ORDER BY id ASC LIMIT 1;`
+  );
+
+  if (!account) {
+    db.runSync(
+      `INSERT INTO accounts (name, type, balance, color) VALUES (?, ?, ?, ?);`,
+      ['Main account', 'checking', 0, '#5B8DEF']
+    );
+
+    account = db.getFirstSync<{ id: number }>(
+      `SELECT id FROM accounts ORDER BY id ASC LIMIT 1;`
+    );
+  }
+
+  return account?.id ?? null;
+}
+
+export function addTransaction(input: {
+  type: TransactionType;
+  category: string;
+  amount: number;
+  note?: string | null;
+  occurred_at?: string;
+}) {
+  initializeDatabase();
+
+  const accountId = getPrimaryAccountId();
+
+  if (accountId == null) {
+    return null;
+  }
+
+  db.runSync(
+    `INSERT INTO transactions (account_id, type, category, amount, note, occurred_at)
+     VALUES (?, ?, ?, ?, ?, ?);`,
+    [
+      accountId,
+      input.type,
+      input.category,
+      Number(input.amount),
+      input.note ?? null,
+      input.occurred_at ?? new Date().toISOString(),
+    ]
+  );
+
+  return true;
+}
+
+export function getTransactions(limit = 20) {
+  initializeDatabase();
+
+  return db.getAllSync<TransactionRow>(
+    `SELECT id, account_id, type, category, amount, note, occurred_at
+     FROM transactions
+     ORDER BY occurred_at DESC
+     LIMIT ?;`,
+    [limit]
+  );
+}
+
+export function getTransactionSummary() {
+  const transactions = getTransactions(1000);
+
+  const income = transactions
+    .filter((item) => item.type === 'income')
+    .reduce((sum, item) => sum + Number(item.amount), 0);
+
+  const expenses = transactions
+    .filter((item) => item.type === 'expense')
+    .reduce((sum, item) => sum + Number(item.amount), 0);
+
+  const loans = transactions
+    .filter((item) => item.type === 'loan')
+    .reduce((sum, item) => sum + Number(item.amount), 0);
+
+  return {
+    income,
+    expenses,
+    loans,
+    net: income - expenses - loans,
+    totalTransactions: transactions.length,
+  };
+}
+
 export function seedSampleData() {
   initializeDatabase();
 
-  const accountCount = db.getAllSync<{ id: number }>(`SELECT id FROM accounts LIMIT 1;`);
+  const accountCount = db.getFirstSync<{ count: number }>(
+    `SELECT COUNT(*) AS count FROM accounts;`
+  );
 
-  if (accountCount.length > 0) {
+  if ((accountCount?.count ?? 0) > 0) {
     return;
   }
 
   db.runSync(
     `INSERT INTO accounts (name, type, balance, color) VALUES (?, ?, ?, ?);`,
-    ['Main account', 'checking', 12480.5, '#5B8DEF']
-  );
-  db.runSync(
-    `INSERT INTO accounts (name, type, balance, color) VALUES (?, ?, ?, ?);`,
-    ['Savings', 'savings', 8600, '#22C55E']
-  );
-
-  db.runSync(
-    `INSERT INTO transactions (account_id, type, category, amount, note, occurred_at) VALUES (?, ?, ?, ?, ?, ?);`,
-    [1, 'income', 'Salary', 4200, 'Monthly paycheck', '2026-09-01T09:00:00.000Z']
-  );
-  db.runSync(
-    `INSERT INTO transactions (account_id, type, category, amount, note, occurred_at) VALUES (?, ?, ?, ?, ?, ?);`,
-    [1, 'expense', 'Rent', 1450, 'Apartment rent', '2026-09-03T12:00:00.000Z']
-  );
-  db.runSync(
-    `INSERT INTO budgets (category, limit_amount, period) VALUES (?, ?, ?);`,
-    ['Food', 700, 'monthly']
+    ['Main account', 'checking', 0, '#5B8DEF']
   );
 }

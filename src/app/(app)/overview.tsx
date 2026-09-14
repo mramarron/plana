@@ -8,7 +8,7 @@ import {
   TrendingUp,
   Wallet,
 } from 'lucide-react-native';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
   ScrollView,
@@ -20,22 +20,14 @@ import {
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Circle, Defs, LinearGradient, Path, Stop, Svg } from 'react-native-svg';
 
-import { useNavigation } from 'expo-router';
+import { useFocusEffect, useNavigation } from 'expo-router';
 
 import { Colors } from '@/constants/theme';
+import { getTransactions, getTransactionSummary } from '@/lib/db';
 
 const { width } = Dimensions.get('window');
-
-// Data state
-const MOCK_FINANCES = {
-  monthlyIncome: 4500,
-  monthlyExpenses: 1250,
-  weeklyIncome: 1125,
-  weeklyExpenses: 312.5,
-  chartValues: [42, 56, 49, 72, 61, 90, 83, 97],
-  series: [24, 36, 28, 44, 35, 62, 58, 78],
-};
 
 export default function OverviewScreen() {
   const insets = useSafeAreaInsets();
@@ -60,6 +52,56 @@ export default function OverviewScreen() {
   };
   const [period, setPeriod] = useState<'monthly' | 'weekly'>('monthly');
   const [tabBarVisible, setTabBarVisible] = useState(true);
+  const [summary, setSummary] = useState(() => getTransactionSummary());
+  const [transactions, setTransactions] = useState(() => getTransactions(7));
+
+  const chartMetrics = useMemo(() => {
+    const orderedTransactions = [...transactions].reverse();
+    const values = orderedTransactions.map((transaction) => Math.abs(Number(transaction.amount)));
+    const maxValue = Math.max(...values, 1);
+    const chartWidth = Math.max(width - 84, 260);
+    const chartHeight = 150;
+    const padding = 20;
+    const innerWidth = chartWidth - padding * 2;
+    const innerHeight = chartHeight - padding * 2;
+
+    const points = orderedTransactions.map((transaction, index) => {
+      const value = Math.abs(Number(transaction.amount));
+      const x = padding + (index / Math.max(orderedTransactions.length - 1, 1)) * innerWidth;
+      const y = chartHeight - padding - (value / maxValue) * innerHeight;
+
+      return {
+        ...transaction,
+        x,
+        y,
+        value,
+      };
+    });
+
+    if (points.length === 0) {
+      return {
+        chartWidth,
+        chartHeight,
+        points: [],
+        linePath: '',
+        areaPath: '',
+      };
+    }
+
+    const linePath = points
+      .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+      .join(' ');
+
+    const areaPath = `${linePath} L ${points[points.length - 1].x} ${chartHeight - padding} L ${points[0].x} ${chartHeight - padding} Z`;
+
+    return {
+      chartWidth,
+      chartHeight,
+      points,
+      linePath,
+      areaPath,
+    };
+  }, [transactions, width]);
   const lastScrollY = useRef(0);
   const tabBarStyle = {
     position: 'absolute' as const,
@@ -101,11 +143,20 @@ export default function OverviewScreen() {
     });
   }, [navigation, tabBarStyle]);
 
+  const refreshOverviewData = useCallback(() => {
+    setSummary(getTransactionSummary());
+    setTransactions(getTransactions(7));
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshOverviewData();
+    }, [refreshOverviewData])
+  );
+
   // Financial Calculations
-  const rawIncome =
-    period === 'monthly' ? MOCK_FINANCES.monthlyIncome : MOCK_FINANCES.weeklyIncome;
-  const expenses =
-    period === 'monthly' ? MOCK_FINANCES.monthlyExpenses : MOCK_FINANCES.weeklyExpenses;
+  const rawIncome = summary.income;
+  const expenses = summary.expenses;
 
   // 1. Calculate Tithe (10% of gross income)
   const tithe = rawIncome * 0.1;
@@ -249,36 +300,48 @@ export default function OverviewScreen() {
             <Calendar size={18} color="#94A3B8" />
           </View>
 
-          {/* Simple Custom Bar Visualizer */}
           <View style={styles.chartContainer}>
-            {MOCK_FINANCES.chartValues.map((val, idx) => {
-              const expenseVal = MOCK_FINANCES.series[idx];
-              const maxHeight = 100;
-              return (
-                <View key={idx} style={styles.barGroup}>
-                  <View style={styles.barTrack}>
-                    <View
-                      style={[
-                        styles.barFill,
-                        {
-                          height: (val / 100) * maxHeight,
-                          backgroundColor: '#38BDF8',
-                        },
-                      ]}
-                    />
-                    <View
-                      style={[
-                        styles.barFill,
-                        {
-                          height: (expenseVal / 100) * maxHeight,
-                          backgroundColor: '#EF4444',
-                        },
-                      ]}
-                    />
-                  </View>
-                </View>
-              );
-            })}
+            {chartMetrics.points.length > 0 ? (
+              <Svg
+                width="100%"
+                height={chartMetrics.chartHeight}
+                viewBox={`0 0 ${chartMetrics.chartWidth} ${chartMetrics.chartHeight}`}
+                preserveAspectRatio="none"
+              >
+                <Defs>
+                  <LinearGradient id="chartAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                    <Stop offset="0%" stopColor="#38BDF8" stopOpacity={0.55} />
+                    <Stop offset="100%" stopColor="#38BDF8" stopOpacity={0.05} />
+                  </LinearGradient>
+                </Defs>
+
+                <Path d={chartMetrics.areaPath} fill="url(#chartAreaGradient)" />
+                <Path
+                  d={chartMetrics.linePath}
+                  fill="none"
+                  stroke="#38BDF8"
+                  strokeWidth={3}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+
+                {chartMetrics.points.map((point) => (
+                  <Circle
+                    key={point.id}
+                    cx={point.x}
+                    cy={point.y}
+                    r={4}
+                    fill={point.type === 'income' ? '#38BDF8' : '#EF4444'}
+                    stroke={isDark ? '#0F172A' : '#FFFFFF'}
+                    strokeWidth={2}
+                  />
+                ))}
+              </Svg>
+            ) : (
+              <Text style={[styles.emptyChartText, { color: palette.textSecondary }]}>
+                Add a transaction to see activity here.
+              </Text>
+            )}
           </View>
           <View style={styles.chartLegend}>
             <View style={styles.legendItem}>
@@ -311,11 +374,11 @@ export default function OverviewScreen() {
               <View>
                 <Text style={[styles.titheTitle, { color: palette.titheTitle }]}>Tithe Allocation (10%)</Text>
                 <Text style={[styles.titheSubtitle, { color: palette.titheSubtitle }]}>First fruits of total {period} income</Text>
-              </View>
-            </View>
             <Text style={[styles.titheAmount, { color: palette.titheTitle }]}>
               MWK{tithe.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </Text>
+              </View>
+            </View>
           </View>
         </Animated.View>
 
@@ -524,10 +587,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   chartContainer: {
-    height: 110,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
+    height: 150,
+    justifyContent: 'center',
+    alignItems: 'stretch',
     paddingVertical: 10,
   },
   barGroup: {
@@ -550,6 +612,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#334155',
     paddingTop: 12,
+  },
+  emptyChartText: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
+    flex: 1,
   },
   legendItem: {
     flexDirection: 'row',
@@ -598,7 +666,7 @@ const styles = StyleSheet.create({
     color: '#D97706',
   },
   titheAmount: {
-    fontSize: 18,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#F59E0B',
   },
