@@ -20,6 +20,20 @@ export interface CategoryRow {
   name: string;
 }
 
+export interface BudgetRow {
+  id: number;
+  category: string;
+  limit_amount: number;
+  period: string;
+  created_at: string;
+}
+
+export interface BudgetUsageRow extends BudgetRow {
+  spent: number;
+  remaining: number;
+  progress: number;
+}
+
 let isDatabaseInitialized = false;
 
 export function initializeDatabase() {
@@ -150,6 +164,114 @@ export function saveCategory(type: TransactionType, name: string) {
     `INSERT OR IGNORE INTO categories (type, name) VALUES (?, ?);`,
     [type, cleanedName]
   );
+}
+
+export function getBudgets(period = 'monthly') {
+  initializeDatabase();
+
+  return db.getAllSync<BudgetRow>(
+    `SELECT id, category, limit_amount, period, created_at
+     FROM budgets
+     WHERE period = ?
+     ORDER BY created_at DESC;`,
+    [period]
+  );
+}
+
+export function saveBudget(input: {
+  id?: number;
+  category: string;
+  limit_amount: number;
+  period?: string;
+}) {
+  initializeDatabase();
+
+  const cleanedCategory = input.category.trim();
+  const limitAmount = Number(input.limit_amount);
+  const period = input.period ?? 'monthly';
+
+  if (!cleanedCategory || !Number.isFinite(limitAmount) || limitAmount <= 0) {
+    return null;
+  }
+
+  if (input.id) {
+    db.runSync(
+      `UPDATE budgets
+       SET category = ?, limit_amount = ?, period = ?, created_at = CURRENT_TIMESTAMP
+       WHERE id = ?;`,
+      [cleanedCategory, limitAmount, period, input.id]
+    );
+
+    return input.id;
+  }
+
+  const existing = db.getFirstSync<{ id: number }>(
+    `SELECT id FROM budgets WHERE category = ? AND period = ?;`,
+    [cleanedCategory, period]
+  );
+
+  if (existing) {
+    db.runSync(
+      `UPDATE budgets
+       SET limit_amount = ?, created_at = CURRENT_TIMESTAMP
+       WHERE id = ?;`,
+      [limitAmount, existing.id]
+    );
+
+    return existing.id;
+  }
+
+  db.runSync(
+    `INSERT INTO budgets (category, limit_amount, period) VALUES (?, ?, ?);`,
+    [cleanedCategory, limitAmount, period]
+  );
+
+  return true;
+}
+
+export function deleteBudget(id: number) {
+  initializeDatabase();
+
+  db.runSync(
+    `DELETE FROM budgets WHERE id = ?;`,
+    [id]
+  );
+
+  return true;
+}
+
+export function getBudgetsWithUsage(period = 'monthly', referenceDate: Date = new Date()) {
+  const budgets = getBudgets(period);
+
+  const startOfPeriod = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
+  const endOfPeriod = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 1);
+
+  const transactions = getTransactions(1000, {
+    startDate: startOfPeriod.toISOString(),
+    endDate: endOfPeriod.toISOString(),
+  });
+
+  const spentByCategory = transactions.reduce<Record<string, number>>((acc, item) => {
+    if (item.type !== 'expense') {
+      return acc;
+    }
+
+    acc[item.category] = (acc[item.category] ?? 0) + Number(item.amount);
+    return acc;
+  }, {});
+
+  return budgets.map((budget) => {
+    const spent = spentByCategory[budget.category] ?? 0;
+    const remaining = budget.limit_amount - spent;
+    const progress = budget.limit_amount > 0 ? Math.min((spent / budget.limit_amount) * 100, 100) : 0;
+
+    return {
+      ...budget,
+      spent,
+      remaining,
+      progress,
+    } satisfies BudgetUsageRow;
+  });
 }
 
 export function getPrimaryAccountId() {

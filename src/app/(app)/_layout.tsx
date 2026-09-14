@@ -1,6 +1,6 @@
 import { GlassContainer } from 'expo-glass-effect';
 import { DarkTheme, DefaultTheme, Tabs, ThemeProvider } from 'expo-router';
-import { ChartPie, CircleDollarSign, Target } from 'lucide-react-native';
+import { ChartPie, CircleDollarSign, PiggyBank, Target } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Keyboard, StyleSheet, useColorScheme, View } from 'react-native';
 
@@ -88,6 +88,13 @@ export default function AppLayout() {
             options={{
               title: 'Transactions',
               tabBarIcon: ({ color, size }) => <CircleDollarSign color={color} size={size} />,
+            }}
+          />
+          <Tabs.Screen
+            name="budgets"
+            options={{
+              title: 'Budgets',
+              tabBarIcon: ({ color, size }) => <PiggyBank color={color} size={size} />,
             }}
           />
           <Tabs.Screen
