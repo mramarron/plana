@@ -1,125 +1,105 @@
-import { Image } from 'expo-image';
-import { SymbolView } from 'expo-symbols';
-import { Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ExternalLink } from '@/components/external-link';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Collapsible } from '@/components/ui/collapsible';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Spacing } from '@/constants/theme';
 
-export default function TabTwoScreen() {
+const chartBars = [40, 68, 52, 88, 62, 94, 70, 82];
+
+export default function DashboardScreen() {
   const safeAreaInsets = useSafeAreaInsets();
-  const insets = {
-    ...safeAreaInsets,
-    bottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three,
-  };
-  const theme = useTheme();
-
-  const contentPlatformStyle = Platform.select({
-    android: {
-      paddingTop: insets.top,
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
-      paddingBottom: insets.bottom,
-    },
-    web: {
-      paddingTop: Spacing.six,
-      paddingBottom: Spacing.four,
-    },
-  });
 
   return (
     <ScrollView
-      style={[styles.scrollView, { backgroundColor: theme.background }]}
-      contentInset={insets}
-      contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
+      style={styles.scrollView}
+      contentContainerStyle={{
+        paddingTop: safeAreaInsets.top + Spacing.three,
+        paddingBottom: safeAreaInsets.bottom + Spacing.three,
+        paddingHorizontal: Spacing.three,
+      }}>
       <ThemedView style={styles.container}>
-        <ThemedView style={styles.titleContainer}>
-          <ThemedText type="subtitle">Explore</ThemedText>
-          <ThemedText style={styles.centerText} themeColor="textSecondary">
-            This starter app includes example{'\n'}code to help you get started.
-          </ThemedText>
+        <View style={styles.headerRow}>
+          <View>
+            <ThemedText type="small" themeColor="textSecondary">Good morning</ThemedText>
+            <ThemedText type="subtitle">Plana</ThemedText>
+          </View>
+          <ThemedView style={styles.avatar}>
+            <ThemedText type="smallBold">JD</ThemedText>
+          </ThemedView>
+        </View>
 
-          <ExternalLink href="https://docs.expo.dev" asChild>
-            <Pressable style={({ pressed }) => pressed && styles.pressed}>
-              <ThemedView type="backgroundElement" style={styles.linkButton}>
-                <ThemedText type="link">Expo documentation</ThemedText>
-                <SymbolView
-                  tintColor={theme.text}
-                  name={{ ios: 'arrow.up.right.square', android: 'link', web: 'link' }}
-                  size={12}
-                />
-              </ThemedView>
-            </Pressable>
-          </ExternalLink>
+        <ThemedView style={styles.heroCard}>
+          <ThemedText type="small" themeColor="textSecondary">Total balance</ThemedText>
+          <ThemedText type="title" style={styles.balanceValue}>$12,480</ThemedText>
+          <View style={styles.inlineMeta}>
+            <ThemedText type="smallBold" style={styles.positiveText}>+$1,840</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">vs last month</ThemedText>
+          </View>
         </ThemedView>
 
-        <ThemedView style={styles.sectionsWrapper}>
-          <Collapsible title="File-based routing">
-            <ThemedText type="small">
-              This app has two screens: <ThemedText type="code">src/app/index.tsx</ThemedText> and{' '}
-              <ThemedText type="code">src/app/explore.tsx</ThemedText>
-            </ThemedText>
-            <ThemedText type="small">
-              The layout file in <ThemedText type="code">src/app/_layout.tsx</ThemedText> sets up
-              the tab navigator.
-            </ThemedText>
-            <ExternalLink href="https://docs.expo.dev/router/introduction">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
+        <View style={styles.gridRow}>
+          <ThemedView style={styles.statCard}>
+            <ThemedText type="small" themeColor="textSecondary">Income</ThemedText>
+            <ThemedText type="subtitle" style={styles.statValue}>$5.3k</ThemedText>
+          </ThemedView>
 
-          <Collapsible title="Android, iOS, and web support">
-            <ThemedView type="backgroundElement" style={styles.collapsibleContent}>
-              <ThemedText type="small">
-                You can open this project on Android, iOS, and the web. To open the web version,
-                press <ThemedText type="smallBold">w</ThemedText> in the terminal running this
-                project.
-              </ThemedText>
-              <Image
-                source={require('@/assets/images/tutorial-web.png')}
-                style={styles.imageTutorial}
-              />
-            </ThemedView>
-          </Collapsible>
+          <ThemedView style={styles.statCard}>
+            <ThemedText type="small" themeColor="textSecondary">Spending</ThemedText>
+            <ThemedText type="subtitle" style={styles.statValue}>$2.7k</ThemedText>
+          </ThemedView>
+        </View>
 
-          <Collapsible title="Images">
-            <ThemedText type="small">
-              For static images, you can use the <ThemedText type="code">@2x</ThemedText> and{' '}
-              <ThemedText type="code">@3x</ThemedText> suffixes to provide files for different
-              screen densities.
-            </ThemedText>
-            <Image source={require('@/assets/images/react-logo.png')} style={styles.imageReact} />
-            <ExternalLink href="https://reactnative.dev/docs/images">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
+        <ThemedView style={styles.chartCard}>
+          <View style={styles.chartHeader}>
+            <ThemedText type="smallBold">Cash flow</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">7 days</ThemedText>
+          </View>
 
-          <Collapsible title="Light and dark mode components">
-            <ThemedText type="small">
-              This template has light and dark mode support. The{' '}
-              <ThemedText type="code">useColorScheme()</ThemedText> hook lets you inspect what the
-              user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-            </ThemedText>
-            <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
-
-          <Collapsible title="Animations">
-            <ThemedText type="small">
-              This template includes an example of an animated component. The{' '}
-              <ThemedText type="code">src/components/ui/collapsible.tsx</ThemedText> component uses
-              the powerful <ThemedText type="code">react-native-reanimated</ThemedText> library to
-              animate opening this hint.
-            </ThemedText>
-          </Collapsible>
+          <View style={styles.chartBars}>
+            {chartBars.map((height, index) => (
+              <View key={`${height}-${index}`} style={[styles.bar, { height: `${height}%` }]} />
+            ))}
+          </View>
         </ThemedView>
-        {Platform.OS === 'web' && <WebBadge />}
+
+        <View style={styles.bottomRow}>
+          <ThemedView style={styles.pieCard}>
+            <ThemedText type="smallBold">Budget</ThemedText>
+            <View style={styles.ringWrap}>
+              <View style={styles.ring}>
+                <View style={styles.ringInner}>
+                  <ThemedText type="smallBold">72%</ThemedText>
+                </View>
+              </View>
+            </View>
+          </ThemedView>
+
+          <ThemedView style={styles.listCard}>
+            <ThemedText type="smallBold" style={styles.listTitle}>Categories</ThemedText>
+            <View style={styles.categoryRow}>
+              <View style={styles.labelWrap}>
+                <View style={[styles.dot, { backgroundColor: '#5B8DEF' }]} />
+                <ThemedText type="small">Housing</ThemedText>
+              </View>
+              <ThemedText type="smallBold">$1.4k</ThemedText>
+            </View>
+            <View style={styles.categoryRow}>
+              <View style={styles.labelWrap}>
+                <View style={[styles.dot, { backgroundColor: '#22C55E' }]} />
+                <ThemedText type="small">Food</ThemedText>
+              </View>
+              <ThemedText type="smallBold">$640</ThemedText>
+            </View>
+            <View style={styles.categoryRow}>
+              <View style={styles.labelWrap}>
+                <View style={[styles.dot, { backgroundColor: '#F59E0B' }]} />
+                <ThemedText type="small">Travel</ThemedText>
+              </View>
+              <ThemedText type="smallBold">$280</ThemedText>
+            </View>
+          </ThemedView>
+        </View>
       </ThemedView>
     </ScrollView>
   );
@@ -128,53 +108,144 @@ export default function TabTwoScreen() {
 const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
-  },
-  contentContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    backgroundColor: '#F3F6FB',
   },
   container: {
-    maxWidth: MaxContentWidth,
-    flexGrow: 1,
-  },
-  titleContainer: {
-    gap: Spacing.three,
-    alignItems: 'center',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.six,
-  },
-  centerText: {
-    textAlign: 'center',
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  linkButton: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.two,
-    borderRadius: Spacing.five,
-    justifyContent: 'center',
-    gap: Spacing.one,
-    alignItems: 'center',
-  },
-  sectionsWrapper: {
-    gap: Spacing.five,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-  },
-  collapsibleContent: {
-    alignItems: 'center',
-  },
-  imageTutorial: {
     width: '100%',
-    aspectRatio: 296 / 171,
-    borderRadius: Spacing.three,
+    gap: Spacing.three,
+    paddingBottom: Spacing.three,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#E5EBFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroCard: {
+    backgroundColor: '#183153',
+    borderRadius: 28,
+    padding: Spacing.four,
+    minHeight: 170,
+    justifyContent: 'center',
+  },
+  balanceValue: {
+    color: '#fff',
+    marginTop: Spacing.one,
+    marginBottom: Spacing.one,
+  },
+  inlineMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+  },
+  positiveText: {
+    color: '#7EE7A5',
+  },
+  gridRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+  statCard: {
+    flex: 1,
+    padding: Spacing.three,
+    borderRadius: 22,
+    backgroundColor: '#fff',
+    minHeight: 110,
+    justifyContent: 'center',
+  },
+  statValue: {
+    marginTop: Spacing.one,
+  },
+  chartCard: {
+    backgroundColor: '#fff',
+    borderRadius: 26,
+    padding: Spacing.three,
+  },
+  chartHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.two,
+  },
+  chartBars: {
+    height: 120,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  bar: {
+    flex: 1,
+    borderRadius: 10,
+    backgroundColor: '#5B8DEF',
+    opacity: 0.9,
+  },
+  bottomRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+  pieCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: Spacing.three,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ringWrap: {
     marginTop: Spacing.two,
   },
-  imageReact: {
-    width: 100,
-    height: 100,
-    alignSelf: 'center',
+  ring: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    borderWidth: 12,
+    borderColor: '#DDE7FB',
+    borderTopColor: '#5B8DEF',
+    borderRightColor: '#5B8DEF',
+    transform: [{ rotate: '32deg' }],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ringInner: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#F3F6FB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ rotate: '-32deg' }],
+  },
+  listCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: Spacing.three,
+  },
+  listTitle: {
+    marginBottom: Spacing.two,
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.one,
+  },
+  labelWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+  },
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: 999,
   },
 });
