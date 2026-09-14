@@ -32,22 +32,6 @@ export default function AppLayout() {
     backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.42)',
   };
 
-  const tabBarStyle = keyboardVisible
-    ? { display: 'none' }
-    : {
-        position: 'absolute',
-        left: 20,
-        right: 20,
-        bottom: 18,
-        borderTopWidth: 0,
-        borderRadius: 28,
-        height: 58,
-        paddingHorizontal: 8,
-        marginHorizontal: 40,
-        backgroundColor: 'transparent',
-        shadowOpacity: 0,
-        elevation: 0,
-      };
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -55,7 +39,22 @@ export default function AppLayout() {
         <Tabs
           screenOptions={{
             headerShown: false,
-            tabBarStyle,
+            tabBarStyle: keyboardVisible
+              ? { display: 'none' }
+              : {
+                position: 'absolute',
+                left: 20,
+                right: 20,
+                bottom: 18,
+                borderTopWidth: 0,
+                borderRadius: 28,
+                height: 58,
+                paddingHorizontal: 8,
+                marginHorizontal: 40,
+                backgroundColor: 'transparent',
+                shadowOpacity: 0,
+                elevation: 0,
+              },
             tabBarBackground: () => (
               <GlassContainer
                 spacing={14}
