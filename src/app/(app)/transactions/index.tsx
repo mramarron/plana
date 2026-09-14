@@ -105,13 +105,22 @@ export default function TransactionsScreen() {
               <Text style={[styles.title, { color: palette.text }]}>Transactions</Text>
             </View>
 
-            <TouchableOpacity
-              style={[styles.primaryAction, { backgroundColor: palette.balanceTint }]}
-              onPress={() => router.push('/(app)/transactions/new')}
-            >
-              <Plus size={18} color="#0F172A" />
-              <Text style={styles.primaryActionText}>New</Text>
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                style={[styles.secondaryAction, { borderColor: palette.border, backgroundColor: palette.surfaceStrong }]}
+                onPress={() => router.push('/(app)/transactions/categories')}
+              >
+                <Text style={[styles.secondaryActionText, { color: palette.text }]}>Categories</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.primaryAction, { backgroundColor: palette.balanceTint }]}
+                onPress={() => router.push('/(app)/transactions/new')}
+              >
+                <Plus size={18} color="#0F172A" />
+                <Text style={styles.primaryActionText}>New</Text>
+              </TouchableOpacity>
+            </View>
           </Animated.View>
 
           <Animated.View
@@ -366,6 +375,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   primaryAction: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -376,6 +390,16 @@ const styles = StyleSheet.create({
   },
   primaryActionText: {
     color: '#0F172A',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  secondaryAction: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  secondaryActionText: {
     fontSize: 12,
     fontWeight: '700',
   },

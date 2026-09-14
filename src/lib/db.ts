@@ -14,12 +14,33 @@ export interface TransactionRow {
   occurred_at: string;
 }
 
+export interface CategoryRow {
+  id: number;
+  type: TransactionType;
+  name: string;
+}
+
 let isDatabaseInitialized = false;
 
 export function initializeDatabase() {
   if (isDatabaseInitialized) {
     return;
   }
+
+  const defaultCategories: Array<[TransactionType, string]> = [
+    ['income', 'Salary'],
+    ['income', 'Allowance'],
+    ['income', 'Freelance'],
+    ['income', 'Business'],
+    ['expense', 'Rent'],
+    ['expense', 'Groceries'],
+    ['expense', 'Transport'],
+    ['expense', 'Utilities'],
+    ['expense', 'School Fees'],
+    ['loan', 'Family Loan'],
+    ['loan', 'Bank Loan'],
+    ['loan', 'Repayment'],
+  ];
 
   db.execSync(`
     PRAGMA journal_mode = WAL;
@@ -56,9 +77,21 @@ export function initializeDatabase() {
       period TEXT NOT NULL DEFAULT 'monthly',
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL CHECK(type IN ('income','expense','loan')),
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(type, name)
+    );
   `);
 
   isDatabaseInitialized = true;
+
+  for (const [type, name] of defaultCategories) {
+    saveCategory(type, name);
+  }
 }
 
 export function getSetting(key: string) {
@@ -87,6 +120,36 @@ export function hasSeenOnboarding() {
 
 export function markOnboardingSeen() {
   setSetting('has_seen_onboarding', 'true');
+}
+
+export function getCategories(type?: TransactionType) {
+  initializeDatabase();
+
+  if (type) {
+    return db.getAllSync<CategoryRow>(
+      `SELECT id, type, name FROM categories WHERE type = ? ORDER BY name ASC;`,
+      [type]
+    );
+  }
+
+  return db.getAllSync<CategoryRow>(
+    `SELECT id, type, name FROM categories ORDER BY type ASC, name ASC;`
+  );
+}
+
+export function saveCategory(type: TransactionType, name: string) {
+  initializeDatabase();
+
+  const cleanedName = name.trim();
+
+  if (!cleanedName) {
+    return;
+  }
+
+  db.runSync(
+    `INSERT OR IGNORE INTO categories (type, name) VALUES (?, ?);`,
+    [type, cleanedName]
+  );
 }
 
 export function getPrimaryAccountId() {
@@ -125,6 +188,12 @@ export function addTransaction(input: {
     return null;
   }
 
+  const cleanedCategory = input.category?.trim();
+
+  if (cleanedCategory) {
+    saveCategory(input.type, cleanedCategory);
+  }
+
   db.runSync(
     `INSERT INTO transactions (account_id, type, category, amount, note, occurred_at)
      VALUES (?, ?, ?, ?, ?, ?);`,
@@ -141,20 +210,41 @@ export function addTransaction(input: {
   return true;
 }
 
-export function getTransactions(limit = 20) {
+export interface TransactionQueryOptions {
+  startDate?: string;
+  endDate?: string;
+}
+
+export function getTransactions(limit = 20, filters?: TransactionQueryOptions) {
   initializeDatabase();
+
+  const clauses: string[] = [];
+  const params: Array<string | number> = [];
+
+  if (filters?.startDate) {
+    clauses.push('occurred_at >= ?');
+    params.push(filters.startDate);
+  }
+
+  if (filters?.endDate) {
+    clauses.push('occurred_at < ?');
+    params.push(filters.endDate);
+  }
+
+  const whereClause = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
 
   return db.getAllSync<TransactionRow>(
     `SELECT id, account_id, type, category, amount, note, occurred_at
      FROM transactions
+     ${whereClause}
      ORDER BY occurred_at DESC
      LIMIT ?;`,
-    [limit]
+    [...params, limit]
   );
 }
 
-export function getTransactionSummary() {
-  const transactions = getTransactions(1000);
+export function getTransactionSummary(filters?: TransactionQueryOptions) {
+  const transactions = getTransactions(1000, filters);
 
   const income = transactions
     .filter((item) => item.type === 'income')

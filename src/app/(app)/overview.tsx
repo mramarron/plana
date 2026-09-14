@@ -8,7 +8,7 @@ import {
   TrendingUp,
   Wallet,
 } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
   ScrollView,
@@ -50,58 +50,211 @@ export default function OverviewScreen() {
     titheTitle: isDark ? '#F59E0B' : '#B45309',
     titheSubtitle: isDark ? '#D97706' : '#92400E',
   };
-  const [period, setPeriod] = useState<'monthly' | 'weekly'>('monthly');
+  const [period, setPeriod] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
   const [tabBarVisible, setTabBarVisible] = useState(true);
-  const [summary, setSummary] = useState(() => getTransactionSummary());
-  const [transactions, setTransactions] = useState(() => getTransactions(7));
 
-  const chartMetrics = useMemo(() => {
-    const orderedTransactions = [...transactions].reverse();
-    const values = orderedTransactions.map((transaction) => Math.abs(Number(transaction.amount)));
-    const maxValue = Math.max(...values, 1);
-    const chartWidth = Math.max(width - 84, 260);
-    const chartHeight = 150;
-    const padding = 20;
-    const innerWidth = chartWidth - padding * 2;
-    const innerHeight = chartHeight - padding * 2;
+  const getRangeWindow = useCallback((range: 'weekly' | 'monthly' | 'yearly') => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    const points = orderedTransactions.map((transaction, index) => {
-      const value = Math.abs(Number(transaction.amount));
-      const x = padding + (index / Math.max(orderedTransactions.length - 1, 1)) * innerWidth;
-      const y = chartHeight - padding - (value / maxValue) * innerHeight;
+    if (range === 'weekly') {
+      const start = new Date(startOfToday);
+      start.setDate(start.getDate() - 6);
+
+      const end = new Date(startOfToday);
+      end.setDate(end.getDate() + 1);
 
       return {
-        ...transaction,
-        x,
-        y,
-        value,
-      };
-    });
-
-    if (points.length === 0) {
-      return {
-        chartWidth,
-        chartHeight,
-        points: [],
-        linePath: '',
-        areaPath: '',
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
       };
     }
 
-    const linePath = points
-      .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
-      .join(' ');
+    if (range === 'yearly') {
+      return {
+        startDate: new Date(now.getFullYear(), 0, 1).toISOString(),
+        endDate: new Date(now.getFullYear() + 1, 0, 1).toISOString(),
+      };
+    }
 
-    const areaPath = `${linePath} L ${points[points.length - 1].x} ${chartHeight - padding} L ${points[0].x} ${chartHeight - padding} Z`;
+    return {
+      startDate: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(),
+      endDate: new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString(),
+    };
+  }, []);
+
+  const [summary, setSummary] = useState(() => getTransactionSummary(getRangeWindow('monthly')));
+  const [transactions, setTransactions] = useState(() => getTransactions(1000, getRangeWindow('monthly')));
+
+  const periodLabel = period === 'weekly' ? 'Week' : period === 'monthly' ? 'Month' : 'Year';
+  const currentRangeLabel = useMemo(() => {
+    const now = new Date();
+
+    if (period === 'yearly') {
+      return `Jan ${now.getFullYear()} - Dec ${now.getFullYear()}`;
+    }
+
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'long',
+      year: 'numeric',
+    }).format(new Date(now.getFullYear(), now.getMonth(), 1));
+  }, [period]);
+
+  const chartMetrics = useMemo(() => {
+    const chartWidth = Math.max(width - 84, 260);
+    const chartHeight = 170;
+    const padding = {
+      top: 14,
+      right: 18,
+      bottom: 24,
+      left: 18,
+    };
+    const innerWidth = chartWidth - padding.left - padding.right;
+    const innerHeight = chartHeight - padding.top - padding.bottom;
+
+    const rangeWindow = getRangeWindow(period);
+    const startDate = new Date(rangeWindow.startDate);
+    const endDate = new Date(rangeWindow.endDate);
+
+    const lastDayOfMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
+
+    const buckets =
+      period === 'yearly'
+        ? Array.from({ length: 12 }, (_, index) => {
+            const monthDate = new Date(startDate.getFullYear(), index, 1);
+            return {
+              key: `month-${index}`,
+              label: monthDate.toLocaleString('en-US', { month: 'short' }),
+              income: 0,
+              expense: 0,
+              loan: 0,
+            };
+          })
+        : Array.from({ length: Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / 86400000)) }, (_, index) => {
+            const bucketDate = new Date(startDate);
+            bucketDate.setDate(startDate.getDate() + index);
+
+            return {
+              key: `day-${index}`,
+              label:
+                period === 'weekly'
+                  ? bucketDate.toLocaleString('en-US', { weekday: 'short' })
+                  : `${bucketDate.getDate()}`,
+              income: 0,
+              expense: 0,
+              loan: 0,
+            };
+          });
+
+    for (const transaction of transactions) {
+      const occurredAt = new Date(transaction.occurred_at);
+
+      if (period === 'yearly') {
+        const bucketIndex = occurredAt.getMonth();
+        const bucket = buckets[bucketIndex];
+
+        if (!bucket) {
+          continue;
+        }
+
+        if (transaction.type === 'income') {
+          bucket.income += Number(transaction.amount);
+        } else if (transaction.type === 'expense') {
+          bucket.expense += Number(transaction.amount);
+        } else {
+          bucket.loan += Number(transaction.amount);
+        }
+
+        continue;
+      }
+
+      const dayIndex = Math.max(
+        0,
+        Math.min(
+          buckets.length - 1,
+          Math.floor((occurredAt.getTime() - startDate.getTime()) / 86400000)
+        )
+      );
+
+      const bucket = buckets[dayIndex];
+
+      if (!bucket) {
+        continue;
+      }
+
+      if (transaction.type === 'income') {
+        bucket.income += Number(transaction.amount);
+      } else if (transaction.type === 'expense') {
+        bucket.expense += Number(transaction.amount);
+      } else {
+        bucket.loan += Number(transaction.amount);
+      }
+    }
+
+    const maxValue = Math.max(
+      ...buckets.flatMap((bucket) => [bucket.income, bucket.expense, bucket.loan]),
+      1
+    );
+
+    const series = [
+      {
+        key: 'income',
+        color: '#10B981',
+        points: buckets.map((bucket, index) => {
+          const x =
+            buckets.length === 1
+              ? padding.left + innerWidth / 2
+              : padding.left + (index / Math.max(buckets.length - 1, 1)) * innerWidth;
+          const y = chartHeight - padding.bottom - (bucket.income / maxValue) * innerHeight;
+
+          return { x, y, value: bucket.income };
+        }),
+      },
+      {
+        key: 'expense',
+        color: '#EF4444',
+        points: buckets.map((bucket, index) => {
+          const x =
+            buckets.length === 1
+              ? padding.left + innerWidth / 2
+              : padding.left + (index / Math.max(buckets.length - 1, 1)) * innerWidth;
+          const y = chartHeight - padding.bottom - (bucket.expense / maxValue) * innerHeight;
+
+          return { x, y, value: bucket.expense };
+        }),
+      },
+      {
+        key: 'loan',
+        color: '#A78BFA',
+        points: buckets.map((bucket, index) => {
+          const x =
+            buckets.length === 1
+              ? padding.left + innerWidth / 2
+              : padding.left + (index / Math.max(buckets.length - 1, 1)) * innerWidth;
+          const y = chartHeight - padding.bottom - (bucket.loan / maxValue) * innerHeight;
+
+          return { x, y, value: bucket.loan };
+        }),
+      },
+    ].map((entry) => ({
+      ...entry,
+      linePath: entry.points
+        .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+        .join(' '),
+    }));
 
     return {
       chartWidth,
       chartHeight,
-      points,
-      linePath,
-      areaPath,
+      padding,
+      innerWidth,
+      innerHeight,
+      buckets,
+      series,
+      maxValue,
+      lastDayOfMonth,
     };
-  }, [transactions, width]);
+  }, [getRangeWindow, period, transactions]);
   const lastScrollY = useRef(0);
   const tabBarStyle = {
     position: 'absolute' as const,
@@ -143,15 +296,24 @@ export default function OverviewScreen() {
     });
   }, [navigation, tabBarStyle]);
 
-  const refreshOverviewData = useCallback(() => {
-    setSummary(getTransactionSummary());
-    setTransactions(getTransactions(7));
-  }, []);
+  const refreshOverviewData = useCallback(
+    (range: 'weekly' | 'monthly' | 'yearly') => {
+      const rangeWindow = getRangeWindow(range);
+
+      setSummary(getTransactionSummary(rangeWindow));
+      setTransactions(getTransactions(1000, rangeWindow));
+    },
+    [getRangeWindow]
+  );
+
+  useEffect(() => {
+    refreshOverviewData(period);
+  }, [period, refreshOverviewData]);
 
   useFocusEffect(
     useCallback(() => {
-      refreshOverviewData();
-    }, [refreshOverviewData])
+      refreshOverviewData(period);
+    }, [period, refreshOverviewData])
   );
 
   // Financial Calculations
@@ -217,7 +379,7 @@ export default function OverviewScreen() {
                   period === 'weekly' && styles.activeToggleText,
                 ]}
               >
-                Weekly
+                Week
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -234,7 +396,24 @@ export default function OverviewScreen() {
                   period === 'monthly' && styles.activeToggleText,
                 ]}
               >
-                Monthly
+                Month
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.toggleButton,
+                period === 'yearly' && styles.activeToggle,
+              ]}
+              onPress={() => setPeriod('yearly')}
+            >
+              <Text
+                style={[
+                  styles.toggleText,
+                  { color: period === 'yearly' ? palette.text : palette.textSecondary },
+                  period === 'yearly' && styles.activeToggleText,
+                ]}
+              >
+                Year
               </Text>
             </TouchableOpacity>
           </View>
@@ -253,7 +432,7 @@ export default function OverviewScreen() {
         >
           <View style={styles.heroCardHeader}>
             <Text style={[styles.heroLabel, { color: palette.textSecondary }]}>
-              Total Net Balance ({period})
+              Total Net Balance ({periodLabel})
             </Text>
             <Wallet size={20} color="#38BDF8" />
           </View>
@@ -296,12 +475,15 @@ export default function OverviewScreen() {
           ]}
         >
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: palette.text }]}>Activity Trend</Text>
+            <View>
+              <Text style={[styles.sectionTitle, { color: palette.text }]}>Activity Trend</Text>
+              <Text style={[styles.chartRangeLabel, { color: palette.textSecondary }]}>{currentRangeLabel}</Text>
+            </View>
             <Calendar size={18} color="#94A3B8" />
           </View>
 
           <View style={styles.chartContainer}>
-            {chartMetrics.points.length > 0 ? (
+            {chartMetrics.buckets.some((bucket) => bucket.income || bucket.expense || bucket.loan) ? (
               <Svg
                 width="100%"
                 height={chartMetrics.chartHeight}
@@ -309,33 +491,62 @@ export default function OverviewScreen() {
                 preserveAspectRatio="none"
               >
                 <Defs>
-                  <LinearGradient id="chartAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                    <Stop offset="0%" stopColor="#38BDF8" stopOpacity={0.55} />
-                    <Stop offset="100%" stopColor="#38BDF8" stopOpacity={0.05} />
+                  <LinearGradient id="incomeAreaGlow" x1="0" y1="0" x2="0" y2="1">
+                    <Stop offset="0%" stopColor="#10B981" stopOpacity={0.22} />
+                    <Stop offset="100%" stopColor="#10B981" stopOpacity={0.02} />
+                  </LinearGradient>
+                  <LinearGradient id="expenseAreaGlow" x1="0" y1="0" x2="0" y2="1">
+                    <Stop offset="0%" stopColor="#EF4444" stopOpacity={0.22} />
+                    <Stop offset="100%" stopColor="#EF4444" stopOpacity={0.02} />
+                  </LinearGradient>
+                  <LinearGradient id="loanAreaGlow" x1="0" y1="0" x2="0" y2="1">
+                    <Stop offset="0%" stopColor="#A78BFA" stopOpacity={0.18} />
+                    <Stop offset="100%" stopColor="#A78BFA" stopOpacity={0.02} />
                   </LinearGradient>
                 </Defs>
 
-                <Path d={chartMetrics.areaPath} fill="url(#chartAreaGradient)" />
-                <Path
-                  d={chartMetrics.linePath}
-                  fill="none"
-                  stroke="#38BDF8"
-                  strokeWidth={3}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+                {chartMetrics.series.map((entry) => {
+                  const firstPoint = entry.points[0];
+                  const lastPoint = entry.points[entry.points.length - 1];
 
-                {chartMetrics.points.map((point) => (
-                  <Circle
-                    key={point.id}
-                    cx={point.x}
-                    cy={point.y}
-                    r={4}
-                    fill={point.type === 'income' ? '#38BDF8' : '#EF4444'}
-                    stroke={isDark ? '#0F172A' : '#FFFFFF'}
-                    strokeWidth={2}
-                  />
-                ))}
+                  if (!firstPoint || !lastPoint) {
+                    return null;
+                  }
+
+                  const areaPath = `${entry.linePath} L ${lastPoint.x} ${chartMetrics.chartHeight - chartMetrics.padding.bottom} L ${firstPoint.x} ${chartMetrics.chartHeight - chartMetrics.padding.bottom} Z`;
+
+                  return (
+                    <React.Fragment key={entry.key}>
+                      <Path
+                        d={areaPath}
+                        fill={
+                          entry.key === 'income'
+                            ? 'url(#incomeAreaGlow)'
+                            : entry.key === 'expense'
+                              ? 'url(#expenseAreaGlow)'
+                              : 'url(#loanAreaGlow)'
+                        }
+                      />
+                      <Path
+                        d={entry.linePath}
+                        fill="none"
+                        stroke={entry.color}
+                        strokeWidth={3}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      {entry.points.map((point, pointIndex) => (
+                        <Circle
+                          key={`${entry.key}-${pointIndex}`}
+                          cx={point.x}
+                          cy={point.y}
+                          r={point.value > 0 ? 4 : 0}
+                          fill={entry.color}
+                        />
+                      ))}
+                    </React.Fragment>
+                  );
+                })}
               </Svg>
             ) : (
               <Text style={[styles.emptyChartText, { color: palette.textSecondary }]}>
@@ -345,12 +556,16 @@ export default function OverviewScreen() {
           </View>
           <View style={styles.chartLegend}>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#38BDF8' }]} />
-              <Text style={[styles.legendText, { color: palette.textSecondary }]}>Income Stream</Text>
+              <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
+              <Text style={[styles.legendText, { color: palette.textSecondary }]}>Income</Text>
             </View>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
               <Text style={[styles.legendText, { color: palette.textSecondary }]}>Expenses</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#A78BFA' }]} />
+              <Text style={[styles.legendText, { color: palette.textSecondary }]}>Loans</Text>
             </View>
           </View>
         </Animated.View>
@@ -373,7 +588,9 @@ export default function OverviewScreen() {
               </View>
               <View>
                 <Text style={[styles.titheTitle, { color: palette.titheTitle }]}>Tithe Allocation (10%)</Text>
-                <Text style={[styles.titheSubtitle, { color: palette.titheSubtitle }]}>First fruits of total {period} income</Text>
+                <Text style={[styles.titheSubtitle, { color: palette.titheSubtitle }]}>
+                  First fruits of total {periodLabel.toLowerCase()} income
+                </Text>
             <Text style={[styles.titheAmount, { color: palette.titheTitle }]}>
               MWK{tithe.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </Text>
@@ -584,7 +801,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#F8FAFC',
-    marginBottom: 12,
+    marginBottom: 4,
+  },
+  chartRangeLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   chartContainer: {
     height: 150,

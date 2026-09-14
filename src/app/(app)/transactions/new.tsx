@@ -1,5 +1,5 @@
 import { ArrowDownLeft, ArrowUpRight, BadgeDollarSign } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     Alert,
     ScrollView,
@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { Colors } from '@/constants/theme';
-import { addTransaction } from '@/lib/db';
+import { addTransaction, getCategories, saveCategory } from '@/lib/db';
 
 const defaultType = 'income';
 
@@ -54,6 +54,12 @@ export default function NewTransactionScreen() {
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [savedCategories, setSavedCategories] = useState(() => getCategories(initialType as 'income' | 'expense' | 'loan'));
+
+  useEffect(() => {
+    setSavedCategories(getCategories(type));
+  }, [type]);
 
   const palette = useMemo(
     () => ({
@@ -80,11 +86,19 @@ export default function NewTransactionScreen() {
       return;
     }
 
+    const selectedDate = new Date(`${date}T12:00:00`);
+    const trimmedCategory = category.trim();
+
+    if (trimmedCategory) {
+      saveCategory(type, trimmedCategory);
+    }
+
     addTransaction({
       type,
-      category: category.trim() || meta.label,
+      category: trimmedCategory || meta.label,
       amount: cleanedAmount,
       note: title.trim(),
+      occurred_at: selectedDate.toISOString(),
     });
 
     router.back();
@@ -195,6 +209,44 @@ export default function NewTransactionScreen() {
                   },
                 ]}
               />
+
+              {savedCategories.length > 0 && (
+                <View style={styles.categorySuggestions}>
+                  {savedCategories.map((item) => (
+                    <TouchableOpacity
+                      key={`${item.type}-${item.name}`}
+                      style={[
+                        styles.categorySuggestion,
+                        {
+                          backgroundColor: `${meta.accent}22`,
+                          borderColor: `${meta.accent}66`,
+                        },
+                      ]}
+                      onPress={() => setCategory(item.name)}
+                    >
+                      <Text style={[styles.categorySuggestionText, { color: palette.text }]}>{item.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            <View style={styles.fieldRow}>
+              <Text style={[styles.label, { color: palette.textSecondary }]}>Date</Text>
+              <TextInput
+                value={date}
+                onChangeText={setDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={palette.muted}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: palette.field,
+                    color: palette.text,
+                    borderColor: palette.inputBorder,
+                  },
+                ]}
+              />
             </View>
 
             <TouchableOpacity
@@ -284,6 +336,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 14,
+  },
+  categorySuggestions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  categorySuggestion: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  categorySuggestionText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   saveButton: {
     marginTop: 12,
