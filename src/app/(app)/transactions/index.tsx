@@ -86,6 +86,13 @@ export default function TransactionsScreen() {
     };
   }, [transactions]);
 
+  const bucketTotal = summary.income + summary.expenses + summary.loans;
+  const bucketBars = {
+    income: bucketTotal > 0 ? (summary.income / bucketTotal) * 100 : 0,
+    expense: bucketTotal > 0 ? (summary.expenses / bucketTotal) * 100 : 0,
+    loan: bucketTotal > 0 ? (summary.loans / bucketTotal) * 100 : 0,
+  };
+
   return (
     <>
       <Stack.Screen options={{ title: 'Transactions' }} />
@@ -308,7 +315,7 @@ export default function TransactionsScreen() {
                 <View
                   style={[
                     styles.progressBar,
-                    { width: '70%', backgroundColor: palette.incomeTint },
+                    { width: `${bucketBars.income}%`, backgroundColor: palette.incomeTint },
                   ]}
                 />
               </View>
@@ -323,7 +330,7 @@ export default function TransactionsScreen() {
                 <View
                   style={[
                     styles.progressBar,
-                    { width: '45%', backgroundColor: palette.expenseTint },
+                    { width: `${bucketBars.expense}%`, backgroundColor: palette.expenseTint },
                   ]}
                 />
               </View>
@@ -338,7 +345,7 @@ export default function TransactionsScreen() {
                 <View
                   style={[
                     styles.progressBar,
-                    { width: '30%', backgroundColor: palette.loanTint },
+                    { width: `${bucketBars.loan}%`, backgroundColor: palette.loanTint },
                   ]}
                 />
               </View>

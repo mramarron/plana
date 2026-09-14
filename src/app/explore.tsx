@@ -1,14 +1,89 @@
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { getTransactions, getTransactionSummary, TransactionRow } from '@/lib/db';
 
-const chartBars = [40, 68, 52, 88, 62, 94, 70, 82];
+const currencyFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  maximumFractionDigits: 0,
+});
+
+const compactCurrencyFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  notation: 'compact',
+  maximumFractionDigits: 1,
+});
+
+const formatCurrency = (value: number) => currencyFormatter.format(value);
+const formatCompactCurrency = (value: number) => compactCurrencyFormatter.format(value);
 
 export default function DashboardScreen() {
   const safeAreaInsets = useSafeAreaInsets();
+  const [summary, setSummary] = useState(() => getTransactionSummary());
+  const [transactions, setTransactions] = useState<TransactionRow[]>(() => getTransactions(50));
+
+  useEffect(() => {
+    setSummary(getTransactionSummary());
+    setTransactions(getTransactions(50));
+  }, []);
+
+  const chartData = useMemo(() => {
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date();
+      date.setHours(0, 0, 0, 0);
+      date.setDate(date.getDate() - (6 - index));
+      return {
+        label: date.toLocaleDateString('en-US', { weekday: 'short' }),
+        value: 0,
+        date,
+      };
+    });
+
+    for (const transaction of transactions) {
+      const occurredAt = new Date(transaction.occurred_at);
+      const transactionDay = new Date(occurredAt);
+      transactionDay.setHours(0, 0, 0, 0);
+
+      const match = days.find((day) => day.date.getTime() === transactionDay.getTime());
+
+      if (!match) {
+        continue;
+      }
+
+      match.value += Number(transaction.amount);
+    }
+
+    const maxValue = Math.max(...days.map((day) => day.value), 1);
+
+    return days.map((day) => ({
+      ...day,
+      height: maxValue === 0 ? 0 : Math.max((day.value / maxValue) * 100, day.value > 0 ? 12 : 0),
+    }));
+  }, [transactions]);
+
+  const topCategories = useMemo(() => {
+    const totals: Record<string, number> = {};
+
+    for (const transaction of transactions) {
+      if (transaction.type === 'income') {
+        continue;
+      }
+
+      totals[transaction.category] = (totals[transaction.category] ?? 0) + Number(transaction.amount);
+    }
+
+    return Object.entries(totals)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+  }, [transactions]);
+
+  const recentActivity = transactions.slice(0, 3);
 
   return (
     <ScrollView
@@ -30,74 +105,124 @@ export default function DashboardScreen() {
         </View>
 
         <ThemedView style={styles.heroCard}>
-          <ThemedText type="small" themeColor="textSecondary">Total balance</ThemedText>
-          <ThemedText type="title" style={styles.balanceValue}>$12,480</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">Net balance</ThemedText>
+          <ThemedText type="title" style={styles.balanceValue}>
+            {formatCurrency(summary.net)}
+          </ThemedText>
           <View style={styles.inlineMeta}>
-            <ThemedText type="smallBold" style={styles.positiveText}>+$1,840</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">vs last month</ThemedText>
+            <ThemedText type="smallBold" style={summary.net >= 0 ? styles.positiveText : styles.negativeText}>
+              {summary.net >= 0 ? '+' : '-'}
+              {formatCompactCurrency(Math.abs(summary.net))}
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              across {summary.totalTransactions} transactions
+            </ThemedText>
           </View>
         </ThemedView>
 
         <View style={styles.gridRow}>
           <ThemedView style={styles.statCard}>
             <ThemedText type="small" themeColor="textSecondary">Income</ThemedText>
-            <ThemedText type="subtitle" style={styles.statValue}>$5.3k</ThemedText>
+            <ThemedText type="subtitle" style={styles.statValue}>
+              {formatCurrency(summary.income)}
+            </ThemedText>
           </ThemedView>
 
           <ThemedView style={styles.statCard}>
-            <ThemedText type="small" themeColor="textSecondary">Spending</ThemedText>
-            <ThemedText type="subtitle" style={styles.statValue}>$2.7k</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">Expenses</ThemedText>
+            <ThemedText type="subtitle" style={styles.statValue}>
+              {formatCurrency(summary.expenses)}
+            </ThemedText>
+          </ThemedView>
+
+          <ThemedView style={styles.statCard}>
+            <ThemedText type="small" themeColor="textSecondary">Loans</ThemedText>
+            <ThemedText type="subtitle" style={styles.statValue}>
+              {formatCurrency(summary.loans)}
+            </ThemedText>
           </ThemedView>
         </View>
 
         <ThemedView style={styles.chartCard}>
           <View style={styles.chartHeader}>
             <ThemedText type="smallBold">Cash flow</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">7 days</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">Last 7 days</ThemedText>
           </View>
 
           <View style={styles.chartBars}>
-            {chartBars.map((height, index) => (
-              <View key={`${height}-${index}`} style={[styles.bar, { height: `${height}%` }]} />
+            {chartData.map((day) => (
+              <View key={day.label} style={styles.barColumn}>
+                <View style={[styles.bar, { height: `${day.height}%` }]} />
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.chartLabels}>
+            {chartData.map((day) => (
+              <ThemedText key={`${day.label}-label`} type="small" themeColor="textSecondary">
+                {day.label}
+              </ThemedText>
             ))}
           </View>
         </ThemedView>
 
         <View style={styles.bottomRow}>
           <ThemedView style={styles.pieCard}>
-            <ThemedText type="smallBold">Budget</ThemedText>
-            <View style={styles.ringWrap}>
-              <View style={styles.ring}>
-                <View style={styles.ringInner}>
-                  <ThemedText type="smallBold">72%</ThemedText>
-                </View>
+            <ThemedText type="smallBold">Top categories</ThemedText>
+            {topCategories.length > 0 ? (
+              <View style={styles.categoryList}>
+                {topCategories.map(([category, total], index) => (
+                  <View key={`${category}-${index}`} style={styles.categoryRow}>
+                    <View style={styles.labelWrap}>
+                      <View
+                        style={[
+                          styles.dot,
+                          {
+                            backgroundColor: ['#5B8DEF', '#22C55E', '#F59E0B'][index % 3],
+                          },
+                        ]}
+                      />
+                      <ThemedText type="small">{category}</ThemedText>
+                    </View>
+                    <ThemedText type="smallBold">{formatCurrency(total)}</ThemedText>
+                  </View>
+                ))}
               </View>
-            </View>
+            ) : (
+              <ThemedText type="small" themeColor="textSecondary" style={styles.emptyState}>
+                Add expenses or loans to see category totals here.
+              </ThemedText>
+            )}
           </ThemedView>
 
           <ThemedView style={styles.listCard}>
-            <ThemedText type="smallBold" style={styles.listTitle}>Categories</ThemedText>
-            <View style={styles.categoryRow}>
-              <View style={styles.labelWrap}>
-                <View style={[styles.dot, { backgroundColor: '#5B8DEF' }]} />
-                <ThemedText type="small">Housing</ThemedText>
-              </View>
-              <ThemedText type="smallBold">$1.4k</ThemedText>
-            </View>
-            <View style={styles.categoryRow}>
-              <View style={styles.labelWrap}>
-                <View style={[styles.dot, { backgroundColor: '#22C55E' }]} />
-                <ThemedText type="small">Food</ThemedText>
-              </View>
-              <ThemedText type="smallBold">$640</ThemedText>
-            </View>
-            <View style={styles.categoryRow}>
-              <View style={styles.labelWrap}>
-                <View style={[styles.dot, { backgroundColor: '#F59E0B' }]} />
-                <ThemedText type="small">Travel</ThemedText>
-              </View>
-              <ThemedText type="smallBold">$280</ThemedText>
-            </View>
+            <ThemedText type="smallBold" style={styles.listTitle}>Recent activity</ThemedText>
+            {recentActivity.length > 0 ? (
+              recentActivity.map((item) => (
+                <View key={item.id} style={styles.activityRow}>
+                  <View style={styles.activityMeta}>
+                    <ThemedText type="smallBold">{item.category}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {new Date(item.occurred_at).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </ThemedText>
+                  </View>
+
+                  <ThemedText
+                    type="smallBold"
+                    style={item.type === 'income' ? styles.positiveText : styles.negativeText}>
+                    {item.type === 'income' ? '+' : '-'}
+                    {formatCurrency(Number(item.amount))}
+                  </ThemedText>
+                </View>
+              ))
+            ) : (
+              <ThemedText type="small" themeColor="textSecondary" style={styles.emptyState}>
+                No transactions yet. Add one from the app to populate this view.
+              </ThemedText>
+            )}
           </ThemedView>
         </View>
       </ThemedView>
@@ -144,16 +269,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.one,
+    flexWrap: 'wrap',
   },
   positiveText: {
     color: '#7EE7A5',
   },
+  negativeText: {
+    color: '#FCA5A5',
+  },
   gridRow: {
     flexDirection: 'row',
     gap: Spacing.two,
+    flexWrap: 'wrap',
   },
   statCard: {
     flex: 1,
+    minWidth: 120,
     padding: Spacing.three,
     borderRadius: 22,
     backgroundColor: '#fff',
@@ -181,56 +312,47 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
   },
-  bar: {
+  barColumn: {
     flex: 1,
+    height: '100%',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  bar: {
+    width: '100%',
     borderRadius: 10,
     backgroundColor: '#5B8DEF',
     opacity: 0.9,
   },
+  chartLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: Spacing.two,
+  },
   bottomRow: {
     flexDirection: 'row',
     gap: Spacing.two,
+    flexWrap: 'wrap',
   },
   pieCard: {
     flex: 1,
+    minWidth: 220,
     backgroundColor: '#fff',
     borderRadius: 24,
     padding: Spacing.three,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ringWrap: {
-    marginTop: Spacing.two,
-  },
-  ring: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
-    borderWidth: 12,
-    borderColor: '#DDE7FB',
-    borderTopColor: '#5B8DEF',
-    borderRightColor: '#5B8DEF',
-    transform: [{ rotate: '32deg' }],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ringInner: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#F3F6FB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transform: [{ rotate: '-32deg' }],
   },
   listCard: {
     flex: 1,
+    minWidth: 220,
     backgroundColor: '#fff',
     borderRadius: 24,
     padding: Spacing.three,
   },
   listTitle: {
     marginBottom: Spacing.two,
+  },
+  categoryList: {
+    marginTop: Spacing.two,
   },
   categoryRow: {
     flexDirection: 'row',
@@ -242,10 +364,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.one,
+    flexShrink: 1,
   },
   dot: {
     width: 10,
     height: 10,
     borderRadius: 999,
+  },
+  activityRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.one,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  activityMeta: {
+    flexShrink: 1,
+  },
+  emptyState: {
+    marginTop: Spacing.two,
   },
 });

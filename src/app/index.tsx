@@ -12,28 +12,28 @@ import { hasSeenOnboarding, markOnboardingSeen } from '@/lib/db';
 const slides = [
   {
     id: 1,
-    title: 'Plan your cash flow',
-    description: 'Track income, expenses, and recurring bills without losing sight of your goals.',
+    title: 'Capture every money move',
+    description: 'Add income, expenses, and loans with notes and dates so your records stay accurate as life changes.',
     accent: '#5B8DEF',
-    bullets: ['Income tracking', 'Smart categories', 'Cash-flow view'],
+    bullets: ['Income', 'Expenses', 'Loans'],
     amount: '+$4,200',
-    trend: 'salary',
+    trend: 'monthly income',
   },
   {
     id: 2,
-    title: 'Budget with intent',
-    description: 'Set monthly limits, monitor actions, and stay ahead of overspending before it happens.',
+    title: 'Stay organised with categories',
+    description: 'Reuse saved categories like Rent, Groceries, Allowance, and Repayment so each entry is consistent and easy to review.',
     accent: '#22C55E',
-    bullets: ['Budget alerts', 'Goals', 'Recurring bills'],
+    bullets: ['Saved categories', 'Quick reuse', 'Cleaner records'],
     amount: '$1,420',
-    trend: 'spent this month',
+    trend: 'this month',
   },
   {
     id: 3,
-    title: 'Grow with clarity',
-    description: 'Turn every transaction into insight so your next move feels confident, calm, and clear.',
+    title: 'See the full story in overview',
+    description: 'Turn transaction history into insight with live summaries, date filters, and chart views that reflect the way you actually spend.',
     accent: '#F59E0B',
-    bullets: ['Insights', 'Saved goals', 'Weekly reports'],
+    bullets: ['Live overview', 'Date filters', 'Trend charts'],
     amount: '+18.4%',
     trend: 'net growth',
   },
@@ -134,11 +134,11 @@ export default function WelcomeScreen() {
                 <View style={styles.metricRow}>
                   <View style={styles.metricBubble}>
                     <ThemedText type="small">Income</ThemedText>
-                    <ThemedText type="smallBold">$8.4k</ThemedText>
+                    <ThemedText type="smallBold">{slide.amount}</ThemedText>
                   </View>
                   <View style={styles.metricBubble}>
-                    <ThemedText type="small">Expenses</ThemedText>
-                    <ThemedText type="smallBold">$6.9k</ThemedText>
+                    <ThemedText type="small">Focus</ThemedText>
+                    <ThemedText type="smallBold">{slide.trend}</ThemedText>
                   </View>
                 </View>
               </Animated.View>
