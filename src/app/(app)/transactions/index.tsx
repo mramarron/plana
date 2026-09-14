@@ -37,7 +37,7 @@ export default function TransactionsScreen() {
   const [transactions, setTransactions] = useState<TransactionRow[]>([]);
 
   const loadTransactions = useCallback(() => {
-    setTransactions(getTransactions(20));
+    setTransactions(getTransactions(1000));
   }, []);
 
   useFocusEffect(
@@ -86,12 +86,15 @@ export default function TransactionsScreen() {
     };
   }, [transactions]);
 
+
   const bucketTotal = summary.income + summary.expenses + summary.loans;
   const bucketBars = {
     income: bucketTotal > 0 ? (summary.income / bucketTotal) * 100 : 0,
     expense: bucketTotal > 0 ? (summary.expenses / bucketTotal) * 100 : 0,
     loan: bucketTotal > 0 ? (summary.loans / bucketTotal) * 100 : 0,
   };
+
+  const recentTransactions = transactions.reverse().slice(0, 5);
 
   return (
     <>
@@ -141,7 +144,7 @@ export default function TransactionsScreen() {
             ]}
           >
             <View style={styles.heroCardHeader}>
-              <Text style={[styles.heroLabel, { color: palette.textSecondary }]}>Net cash flow</Text>
+              <Text style={[styles.heroLabel, { color: palette.textSecondary }]}>Net cash flow (MWK)</Text>
               <ReceiptText size={20} color={palette.balanceTint} />
             </View>
 
@@ -220,15 +223,17 @@ export default function TransactionsScreen() {
           >
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: palette.text }]}>Recent activity</Text>
-              <Text style={[styles.sectionLink, { color: palette.textSecondary }]}>View all</Text>
+              <TouchableOpacity onPress={() => router.push('/(app)/transactions/all')}>
+                <Text style={[styles.sectionLink, { color: palette.textSecondary }]}>View all</Text>
+              </TouchableOpacity>
             </View>
 
-            {transactions.length === 0 ? (
+            {recentTransactions.length === 0 ? (
               <Text style={[styles.emptyText, { color: palette.textSecondary }]}>
                 No transactions yet. Add your first income, expense, or loan.
               </Text>
             ) : (
-              transactions.map((item) => {
+              recentTransactions.map((item) => {
                 const amount = Number(item.amount);
                 const isIncome = item.type === 'income';
                 const tone =
@@ -285,6 +290,12 @@ export default function TransactionsScreen() {
                         {new Date(item.occurred_at).toLocaleDateString(undefined, {
                           month: 'short',
                           day: 'numeric',
+                        })}
+                      </Text>
+                      <Text style={[styles.activityTime, { color: palette.muted }]}>
+                        {new Date(item.occurred_at).toLocaleTimeString(undefined, {
+                          hour: 'numeric',
+                          minute: '2-digit',
                         })}
                       </Text>
                     </View>
@@ -446,7 +457,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   summaryValue: {
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: '700',
   },
   sectionContainer: {
@@ -537,6 +548,10 @@ const styles = StyleSheet.create({
   },
   activityDate: {
     fontSize: 11,
+  },
+  activityTime: {
+    fontSize: 11,
+    marginTop: 2,
   },
   emptyText: {
     fontSize: 13,

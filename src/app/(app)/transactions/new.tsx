@@ -86,7 +86,10 @@ export default function NewTransactionScreen() {
       return;
     }
 
-    const selectedDate = new Date(`${date}T12:00:00`);
+    const selectedDate = new Date(`${date}T00:00:00`);
+    const now = new Date();
+    selectedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+
     const trimmedCategory = category.trim();
 
     if (trimmedCategory) {

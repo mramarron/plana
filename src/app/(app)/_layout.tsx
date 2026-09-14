@@ -1,7 +1,8 @@
 import { GlassContainer } from 'expo-glass-effect';
 import { DarkTheme, DefaultTheme, Tabs, ThemeProvider } from 'expo-router';
 import { ChartPie, CircleDollarSign, Target } from 'lucide-react-native';
-import { StyleSheet, useColorScheme, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Keyboard, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { Colors } from '@/constants/theme';
 
@@ -9,10 +10,44 @@ export default function AppLayout() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
   const isDark = colorScheme === 'dark';
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const keyboardDidShow = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+    });
+
+    const keyboardDidHide = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      keyboardDidShow.remove();
+      keyboardDidHide.remove();
+    };
+  }, []);
+
   const tabBarBackgroundStyle = {
     borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.08)',
     backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.42)',
   };
+
+  const tabBarStyle = keyboardVisible
+    ? { display: 'none' }
+    : {
+        position: 'absolute',
+        left: 20,
+        right: 20,
+        bottom: 18,
+        borderTopWidth: 0,
+        borderRadius: 28,
+        height: 58,
+        paddingHorizontal: 8,
+        marginHorizontal: 40,
+        backgroundColor: 'transparent',
+        shadowOpacity: 0,
+        elevation: 0,
+      };
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -20,20 +55,7 @@ export default function AppLayout() {
         <Tabs
           screenOptions={{
             headerShown: false,
-            tabBarStyle: {
-              position: 'absolute',
-              left: 20,
-              right: 20,
-              bottom: 18,
-              borderTopWidth: 0,
-              borderRadius: 28,
-              height: 58,
-              paddingHorizontal: 8,
-              marginHorizontal: 40,
-              backgroundColor: 'transparent',
-              shadowOpacity: 0,
-              elevation: 0,
-            },
+            tabBarStyle,
             tabBarBackground: () => (
               <GlassContainer
                 spacing={14}
