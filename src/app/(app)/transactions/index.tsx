@@ -1,18 +1,18 @@
 import {
-    ArrowDownLeft,
-    ArrowUpRight,
-    BadgeDollarSign,
-    Plus,
-    ReceiptText,
+  ArrowDownLeft,
+  ArrowUpRight,
+  BadgeDollarSign,
+  Plus,
+  ReceiptText,
 } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    useColorScheme,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useColorScheme,
+  View,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -144,33 +144,33 @@ export default function TransactionsScreen() {
             ]}
           >
             <View style={styles.heroCardHeader}>
-              <Text style={[styles.heroLabel, { color: palette.textSecondary }]}>Net cash flow (MWK)</Text>
+              <Text style={[styles.heroLabel, { color: palette.textSecondary }]}>Net cash flow (<Text style={{fontSize:12}}><Text style={{fontSize:12}}>MWK</Text></Text>)</Text>
               <ReceiptText size={20} color={palette.balanceTint} />
             </View>
 
             <Text style={[styles.heroBalance, { color: palette.text }]}>
-              MWK{summary.net.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              <Text style={{fontSize:12}}><Text style={{fontSize:12}}>MWK</Text></Text>{summary.net.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </Text>
 
             <View style={styles.summaryGrid}>
               <View style={[styles.summaryItem, { backgroundColor: palette.surfaceStrong, borderColor: palette.border }]}>
                 <Text style={[styles.summaryLabel, { color: palette.textSecondary }]}>Income</Text>
                 <Text style={[styles.summaryValue, { color: palette.incomeTint }]}>
-                  +MWK{summary.income.toLocaleString()}
+                  +<Text style={{fontSize:12}}>MWK</Text>{summary.income.toLocaleString()}
                 </Text>
               </View>
 
               <View style={[styles.summaryItem, { backgroundColor: palette.surfaceStrong, borderColor: palette.border }]}>
                 <Text style={[styles.summaryLabel, { color: palette.textSecondary }]}>Expenses</Text>
                 <Text style={[styles.summaryValue, { color: palette.expenseTint }]}>
-                  -MWK{summary.expenses.toLocaleString()}
+                  -<Text style={{fontSize:12}}>MWK</Text>{summary.expenses.toLocaleString()}
                 </Text>
               </View>
 
               <View style={[styles.summaryItem, { backgroundColor: palette.surfaceStrong, borderColor: palette.border }]}>
                 <Text style={[styles.summaryLabel, { color: palette.textSecondary }]}>Loans</Text>
                 <Text style={[styles.summaryValue, { color: palette.loanTint }]}>
-                  -MWK{summary.loans.toLocaleString()}
+                  -<Text style={{fontSize:12}}>MWK</Text>{summary.loans.toLocaleString()}
                 </Text>
               </View>
             </View>
@@ -284,7 +284,7 @@ export default function TransactionsScreen() {
                           },
                         ]}
                       >
-                        {isIncome ? '+' : '-'}MWK{Math.abs(amount).toLocaleString()}
+                        {isIncome ? '+' : '-'}<Text style={{fontSize:12}}>MWK</Text>{Math.abs(amount).toLocaleString()}
                       </Text>
                       <Text style={[styles.activityDate, { color: palette.muted }]}>
                         {new Date(item.occurred_at).toLocaleDateString(undefined, {
@@ -320,7 +320,7 @@ export default function TransactionsScreen() {
             <View style={styles.bucketRow}>
               <View style={styles.bucketMeta}>
                 <Text style={[styles.bucketLabel, { color: palette.textSecondary }]}>Income</Text>
-                <Text style={[styles.bucketValue, { color: palette.text }]}>MWK{summary.income.toLocaleString()}</Text>
+                <Text style={[styles.bucketValue, { color: palette.text }]}><Text style={{fontSize:12}}>MWK</Text>{summary.income.toLocaleString()}</Text>
               </View>
               <View style={[styles.progressTrack, { backgroundColor: palette.tabBarTrack }]}>
                 <View
@@ -335,7 +335,7 @@ export default function TransactionsScreen() {
             <View style={styles.bucketRow}>
               <View style={styles.bucketMeta}>
                 <Text style={[styles.bucketLabel, { color: palette.textSecondary }]}>Expenses</Text>
-                <Text style={[styles.bucketValue, { color: palette.text }]}>MWK{summary.expenses.toLocaleString()}</Text>
+                <Text style={[styles.bucketValue, { color: palette.text }]}><Text style={{fontSize:12}}>MWK</Text>{summary.expenses.toLocaleString()}</Text>
               </View>
               <View style={[styles.progressTrack, { backgroundColor: palette.tabBarTrack }]}>
                 <View
@@ -350,7 +350,7 @@ export default function TransactionsScreen() {
             <View style={styles.bucketRow}>
               <View style={styles.bucketMeta}>
                 <Text style={[styles.bucketLabel, { color: palette.textSecondary }]}>Loans</Text>
-                <Text style={[styles.bucketValue, { color: palette.text }]}>MWK{summary.loans.toLocaleString()}</Text>
+                <Text style={[styles.bucketValue, { color: palette.text }]}><Text style={{fontSize:12}}>MWK</Text>{summary.loans.toLocaleString()}</Text>
               </View>
               <View style={[styles.progressTrack, { backgroundColor: palette.tabBarTrack }]}>
                 <View

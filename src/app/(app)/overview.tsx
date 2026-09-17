@@ -437,7 +437,7 @@ export default function OverviewScreen() {
             <Wallet size={20} color="#38BDF8" />
           </View>
           <Text style={[styles.heroBalance, { color: palette.text }]}>
-            MWK{netBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            <Text style={{fontSize:12}}>MWK</Text>{netBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
           </Text>
 
           <View style={styles.statRow}>
@@ -457,7 +457,7 @@ export default function OverviewScreen() {
               </View>
               <View>
                 <Text style={[styles.statLabel, { color: palette.textSecondary }]}>Spent</Text>
-                <Text style={[styles.statValue, { color: palette.text }]}>-MWK{expenses.toLocaleString()}</Text>
+                <Text style={[styles.statValue, { color: palette.text }]}>-<Text style={{fontSize:12}}>MWK</Text>{expenses.toLocaleString()}</Text>
               </View>
             </View>
           </View>
@@ -592,7 +592,7 @@ export default function OverviewScreen() {
                   First fruits of total {periodLabel.toLowerCase()} income
                 </Text>
             <Text style={[styles.titheAmount, { color: palette.titheTitle }]}>
-              MWK{tithe.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              <Text style={{fontSize:12}}>MWK</Text>{tithe.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </Text>
               </View>
             </View>
@@ -644,7 +644,7 @@ export default function OverviewScreen() {
               <View style={styles.allocationMeta}>
                 <Text style={[styles.allocationName, { color: palette.textSecondary }]}>Wants (30%)</Text>
                 <Text style={[styles.allocationValue, { color: palette.text }]}>
-                  MWK{wants.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  <Text style={{fontSize:12}}>MWK</Text>{wants.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </Text>
               </View>
               <View style={[styles.progressTrack, { backgroundColor: palette.tabBarTrack }]}>
@@ -667,7 +667,7 @@ export default function OverviewScreen() {
               <View style={styles.allocationMeta}>
                 <Text style={[styles.allocationName, { color: palette.textSecondary }]}>Savings (20%)</Text>
                 <Text style={[styles.allocationValue, { color: palette.text }]}>
-                  MWK{savings.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  <Text style={{fontSize:12}}>MWK</Text>{savings.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </Text>
               </View>
               <View style={[styles.progressTrack, { backgroundColor: palette.tabBarTrack }]}>
